@@ -70,6 +70,7 @@ func (PatchSetCreated) Message(e gerritssh.Event, _ project.Config, c *gerrit.Cl
 	if e.PatchSet.Number > 1 {
 		action = "Updated"
 	}
+	action = fmt.Sprintf("%s %s", e.Submitter.Name, action)
 	m.Pretext = DefaultPretext(action, e)
 
 	// get the list of reviewers for the reviewers field
@@ -83,7 +84,7 @@ func (PatchSetCreated) Message(e gerritssh.Event, _ project.Config, c *gerrit.Cl
 		dstr = "-" + dstr
 	}
 	m.Fields = []MessageField{
-		OwnerField(e),
+		ReviewersField(e, *rs),
 		MessageField{
 			Title: "Size",
 			Value: fmt.Sprintf("+%d, %s",
@@ -92,7 +93,6 @@ func (PatchSetCreated) Message(e gerritssh.Event, _ project.Config, c *gerrit.Cl
 			),
 			Short: true,
 		},
-		ReviewersField(e, *rs),
 	}
 	return m, nil
 }
