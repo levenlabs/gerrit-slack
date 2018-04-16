@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 
+	"golang.org/x/crypto/ssh"
+
 	"github.com/levenlabs/go-llog"
 )
 
@@ -196,35 +198,43 @@ func (e *Client) StreamEvents(ctx context.Context, ch chan Event) error {
 		return err
 	}
 	sos := bufio.NewScanner(sout)
-	doneCh := make(chan bool)
+	runCh := make(chan error, 1)
 
-	// this goroutine will wait for the ctx to be cancelled and also handle
-	// cleanup
+	// start running stream-events and wait for it to disconnect
 	go func() {
-		select {
-		case <-ctx.Done():
-		case <-doneCh:
-		}
-		// todo: assuming that this stops the session.Start and breaks sos.Scan?
-		sess.Close()
-		close(ch)
+		// Run calls Start and then Wait
+		runCh <- sess.Run("gerrit stream-events")
 	}()
 
-	err = sess.Start("gerrit stream-events")
-	if err != nil {
-		// closing the doneCh here will trigger the other goroutines to stop
-		close(doneCh)
-	}
-
+	readCh := make(chan error, 1)
 	// listen on the stdout of ssh session and send events to ch
-	for sos.Scan() {
-		var ev Event
-		if err := json.Unmarshal(sos.Bytes(), &ev); err != nil {
-			llog.Error("error unmarshalling event", llog.ErrKV(err))
-			continue
+	go func() {
+		for sos.Scan() {
+			var ev Event
+			if err := json.Unmarshal(sos.Bytes(), &ev); err != nil {
+				llog.Error("error unmarshalling event", llog.ErrKV(err))
+				continue
+			}
+			llog.Info("gerrit event", ev.KV())
+			ch <- ev
 		}
-		llog.Info("gerrit event", ev.KV())
-		ch <- ev
+		readCh <- sos.Err()
+	}()
+
+	select {
+	case <-ctx.Done():
+	case err = <-runCh:
+		close(runCh)
+	case err = <-readCh:
+		close(readCh)
 	}
-	return sos.Err()
+	sess.Close()
+	// now wait for both goroutines to stop
+	<-runCh
+	<-readCh
+	// ensure there's some error that's returned
+	if err == nil {
+		err = &ssh.ExitMissingError{}
+	}
+	return err
 }

@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"time"
 
+	"golang.org/x/crypto/ssh"
+
 	"github.com/go-ini/ini"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
@@ -21,6 +23,8 @@ import (
 	"github.com/andygrunwald/go-gerrit"
 	"github.com/levenlabs/go-llog"
 )
+
+var sshRetryDelay = 3 * time.Second
 
 type config struct {
 	HTTPAddress    string `ini:"http-address"`
@@ -83,8 +87,11 @@ func main() {
 	go listenForEvents(client, ech, sch)
 
 	llog.Info("streaming events")
-	if err := sshc.StreamEvents(context.Background(), ech); err != nil {
-		llog.Fatal("error streaming events", llog.ErrKV(err))
+	for {
+		if err := sshc.StreamEvents(context.Background(), ech); err != nil {
+			llog.Error("error streaming events", llog.ErrKV(err))
+		}
+		time.Sleep(sshRetryDelay)
 	}
 }
 
@@ -199,31 +206,58 @@ func webhookSubmitter(sch <-chan webhookSubmit) {
 	}
 }
 
+// todo: this is very similar to gerritssh.Client.StreamEvents
 func debugEvents(p string, sshc *gerritssh.Client) {
-	sess, err := sshc.Dial()
-	if err != nil {
-		llog.Fatal("error connecting to gerrit over ssh", llog.ErrKV(err))
-	}
-	sout, err := sess.StdoutPipe()
-	if err != nil {
-		llog.Fatal("error gerrit ssh stdout", llog.ErrKV(err))
-	}
 	log := &lumberjack.Logger{
 		Filename:   p,
 		MaxSize:    100, // in MB
 		MaxBackups: 3,   // keep at most 3 files
 	}
-	sos := bufio.NewScanner(sout)
-	if err := sess.Start("gerrit stream-events"); err != nil {
-		llog.Fatal("error streaming events", llog.ErrKV(err))
-	}
-	for sos.Scan() {
-		_, err := fmt.Fprintf(log, "%s: %s\n", time.Now().Format(time.RFC822), string(sos.Bytes()))
+	innerDebug := func() error {
+		sess, err := sshc.Dial()
 		if err != nil {
-			llog.Fatal("error writing to debug buffer", llog.ErrKV(err))
+			llog.Error("error connecting to gerrit over ssh", llog.ErrKV(err))
+			return err
 		}
+		sout, err := sess.StdoutPipe()
+		if err != nil {
+			llog.Error("error getting debug ssh stdout", llog.ErrKV(err))
+			return err
+		}
+		sos := bufio.NewScanner(sout)
+		runCh := make(chan error, 1)
+		go func() {
+			runCh <- sess.Run("gerrit stream-events")
+		}()
+		readCh := make(chan error, 1)
+		go func() {
+			for sos.Scan() {
+				_, err := fmt.Fprintf(log, "%s: %s\n", time.Now().Format(time.RFC822), string(sos.Bytes()))
+				if err != nil {
+					llog.Error("error writing to debug buffer", llog.ErrKV(err))
+				}
+			}
+			readCh <- sos.Err()
+		}()
+		select {
+		case err = <-runCh:
+			close(runCh)
+		case err = <-readCh:
+			close(readCh)
+		}
+		sess.Close()
+		<-runCh
+		<-readCh
+		// ensure there's some error that's returned
+		if err == nil {
+			err = &ssh.ExitMissingError{}
+		}
+		return err
 	}
-	if err := sos.Err(); err != nil {
-		llog.Fatal("error scanning for ssh output", llog.ErrKV(err))
+	for {
+		if err := innerDebug(); err != nil {
+			llog.Error("error streaming debug events", llog.ErrKV(err))
+		}
+		time.Sleep(sshRetryDelay)
 	}
 }
