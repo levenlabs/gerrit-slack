@@ -2,8 +2,9 @@ package events
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/andygrunwald/go-gerrit"
+	gerrit "github.com/andygrunwald/go-gerrit"
 	"github.com/levenlabs/gerrit-slack/gerritssh"
 	"github.com/levenlabs/gerrit-slack/project"
 	llog "github.com/levenlabs/go-llog"
@@ -76,13 +77,18 @@ func (PatchSetCreated) Message(e gerritssh.Event, _ project.Config, c *gerrit.Cl
 	if err != nil {
 		return m, err
 	}
+	// we must handle 0 or neagtive numbers
+	dstr := fmt.Sprintf("%d", e.PatchSet.SizeDeletions)
+	if !strings.HasPrefix(dstr, "-") {
+		dstr = "-" + dstr
+	}
 	m.Fields = []MessageField{
 		OwnerField(e),
 		MessageField{
 			Title: "Size",
-			Value: fmt.Sprintf("+%d, -%d",
+			Value: fmt.Sprintf("+%d, %s",
 				e.PatchSet.SizeInsertions,
-				e.PatchSet.SizeDeletions,
+				dstr,
 			),
 			Short: true,
 		},
