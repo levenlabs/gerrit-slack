@@ -62,7 +62,7 @@ func (PatchSetCreated) Message(e gerritssh.Event, _ project.Config, c *gerrit.Cl
 	// we let the owner know their change was merged
 	var m Message
 	m.Fallback = fmt.Sprintf("%s proposed %s: %s",
-		e.Submitter.Name,
+		e.Uploader.Name,
 		e.Change.URL,
 		e.Change.Subject,
 	)
@@ -70,7 +70,7 @@ func (PatchSetCreated) Message(e gerritssh.Event, _ project.Config, c *gerrit.Cl
 	if e.PatchSet.Number > 1 {
 		action = "Updated"
 	}
-	action = fmt.Sprintf("%s %s", e.Submitter.Name, action)
+	action = fmt.Sprintf("%s %s", e.Uploader.Name, action)
 	m.Pretext = DefaultPretext(action, e)
 
 	// get the list of reviewers for the reviewers field
