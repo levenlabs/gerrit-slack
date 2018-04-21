@@ -52,15 +52,15 @@ type globalWrapper struct {
 func (w globalWrapper) Ignore(e gerritssh.Event, pcfg project.Config) (bool, error) {
 	// if we're not enabled, ignore
 	if !pcfg.Enabled {
-		return false, nil
+		return true, nil
 	}
 	// if the change is still private, ignore
 	if pcfg.IgnorePrivatePatchSet && e.Change.Private {
-		return false, nil
+		return true, nil
 	}
 	// if the change is still wip, ignore
 	if pcfg.IgnoreWipPatchSet && e.Change.WIP {
-		return false, nil
+		return true, nil
 	}
 	return w.EventHandler.Ignore(e, pcfg)
 }
