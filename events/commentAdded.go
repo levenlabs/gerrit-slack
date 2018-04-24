@@ -33,11 +33,6 @@ func (CommentAdded) Ignore(e gerritssh.Event, pcfg project.Config) (bool, error)
 func (CommentAdded) Message(e gerritssh.Event, _ project.Config, c *gerrit.Client) (Message, error) {
 	// we let the owner know their change was merged
 	var m Message
-	m.Fallback = fmt.Sprintf("%s commented on %s: %s",
-		e.Author.Name,
-		e.Change.URL,
-		e.Change.Subject,
-	)
 	var voted bool
 	if len(e.Approvals) > 0 {
 		// TODO: remove this once https://bugs.chromium.org/p/gerrit/issues/detail?id=8494
@@ -52,6 +47,12 @@ func (CommentAdded) Message(e gerritssh.Event, _ project.Config, c *gerrit.Clien
 	if voted {
 		action = "voted on"
 	}
+	m.Fallback = fmt.Sprintf("%s %s %s: %s",
+		e.Author.Name,
+		action,
+		e.Change.URL,
+		e.Change.Subject,
+	)
 	action = fmt.Sprintf("%s %s", e.Author.Name, action)
 	m.Pretext = DefaultPretext(action, e)
 
