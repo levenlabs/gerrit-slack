@@ -23,7 +23,17 @@ func (ReviewerAdded) Type() string {
 
 // Ignore implements the EventHandler interface
 func (ReviewerAdded) Ignore(e gerritssh.Event, pcfg project.Config) (bool, error) {
-	return !pcfg.PublishOnReviewerAdded, nil
+	if !pcfg.PublishOnReviewerAdded {
+		return true, nil
+	}
+	if !pcfg.PublishPatchSetReviewersAdded {
+		// if the event and the patchset were created at the same time, the reviewers
+		// were added with the patchset
+		if e.PatchSet.TSCreated == e.TSCreated {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Message implements the EventHandler interface

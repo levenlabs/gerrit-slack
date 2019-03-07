@@ -31,6 +31,10 @@ type Config struct {
 	PublishOnCommentAdded    bool   `ini:"publish-on-comment-added"`
 	PublishOnPatchSetCreated bool   `ini:"publish-on-patch-set-created"`
 	PublishOnReviewerAdded   bool   `ini:"publish-on-reviewer-added"`
+	// PublishPatchSetReviewersAdded controls whether we publish when a reviewer
+	// is added as part of uploading a new patch-set. This is only necessary
+	// because https://bugs.chromium.org/p/gerrit/issues/detail?id=10042
+	PublishPatchSetReviewersAdded bool `ini:"publish-patch-set-reviewers-added"`
 
 	// PublishOnWipReady and PublishOnPrivateToPublic default to the value of
 	// PublishOnPatchSetCreated but since we can't determine if they were false

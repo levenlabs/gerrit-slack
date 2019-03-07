@@ -146,6 +146,7 @@ type EventChange struct {
 	Open          bool         `json:"open"`
 	Private       bool         `json:"private"`
 	WIP           bool         `json:"wip"`
+	TSCreated     int64        `json:"createdOn"`
 }
 
 // EventPatchSet describes a patch set inside an Event
@@ -159,6 +160,7 @@ type EventPatchSet struct {
 	Author         EventAccount `json:"author"`
 	SizeInsertions int64        `json:"sizeInsertions"`
 	SizeDeletions  int64        `json:"sizeDeletions"`
+	TSCreated      int64        `json:"createdOn"`
 }
 
 // EventAccount describes a user account inside an Event
