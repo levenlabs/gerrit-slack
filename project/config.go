@@ -2,7 +2,6 @@ package project
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
 	gerrit "github.com/andygrunwald/go-gerrit"
@@ -57,7 +56,7 @@ func DefaultConfig() Config {
 }
 
 func encodeBranch(branch string) string {
-	return url.PathEscape(strings.TrimPrefix(branch, "/refs/heads/"))
+	return strings.TrimPrefix(branch, "/refs/heads/")
 }
 
 // LoadConfig loads the config for the sent project
@@ -66,7 +65,7 @@ func LoadConfig(client *gerrit.Client, project string) (Config, error) {
 	projects := []string{project}
 	// first get a list of all of the parents
 	for {
-		parent, _, err := client.Projects.GetProjectParent(url.PathEscape(project))
+		parent, _, err := client.Projects.GetProjectParent(project)
 		if err != nil {
 			return cfg, err
 		}
@@ -79,9 +78,9 @@ func LoadConfig(client *gerrit.Client, project string) (Config, error) {
 	// now loop through that list backwards and build config
 	for i := len(projects) - 1; i >= 0; i-- {
 		contents, _, err := client.Projects.GetBranchContent(
-			url.PathEscape(projects[i]),
+			projects[i],
 			encodeBranch(projectConfigBranch),
-			url.PathEscape(projectConfigPath),
+			projectConfigPath,
 		)
 		if err != nil {
 			return cfg, llog.ErrWithKV(err, llog.KV{"project": projects[i]})
