@@ -27,9 +27,9 @@ func (ReviewerAdded) Ignore(e gerritssh.Event, pcfg project.Config) (bool, error
 		return true, nil
 	}
 	if !pcfg.PublishPatchSetReviewersAdded {
-		// if the event and the patchset were created within a second, the reviewers
+		// if the event and the patchset were created within 5 seconds, the reviewers
 		// were added with the patchset
-		if e.TSCreated-e.PatchSet.TSCreated <= 1 {
+		if e.TSCreated-e.PatchSet.TSCreated <= 5 {
 			return true, nil
 		}
 	}
