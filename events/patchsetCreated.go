@@ -3,6 +3,7 @@ package events
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	gerrit "github.com/andygrunwald/go-gerrit"
 	"github.com/levenlabs/gerrit-slack/gerritssh"
@@ -58,7 +59,7 @@ func (PatchSetCreated) Ignore(e gerritssh.Event, pcfg project.Config) (bool, err
 }
 
 // Message implements the EventHandler interface
-func (PatchSetCreated) Message(e gerritssh.Event, _ project.Config, c *gerrit.Client) (Message, error) {
+func (PatchSetCreated) Message(e gerritssh.Event, pcfg project.Config, c *gerrit.Client) (Message, error) {
 	// we let the owner know their change was merged
 	var m Message
 	action := "Proposed"
@@ -73,6 +74,10 @@ func (PatchSetCreated) Message(e gerritssh.Event, _ project.Config, c *gerrit.Cl
 	)
 	action = fmt.Sprintf("%s %s", e.Uploader.Name, action)
 	m.Pretext = DefaultPretext(action, e)
+
+	if !pcfg.PublishPatchSetCreatedImmediately {
+		time.Sleep(5 * time.Second)
+	}
 
 	// get the list of reviewers for the reviewers field
 	rs, _, err := c.Changes.ListReviewers(gerritssh.ChangeIDWithProjectNumber(e.Change.Project, e.Change.Number))

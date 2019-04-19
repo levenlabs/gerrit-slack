@@ -35,6 +35,12 @@ type Config struct {
 	// because https://bugs.chromium.org/p/gerrit/issues/detail?id=10042
 	PublishPatchSetReviewersAdded bool `ini:"publish-patch-set-reviewers-added"`
 
+	// PublishPatchSetCreatedImmediately changes the patch-set-created event to fire
+	// immediately against slack instead of waiting 5 seconds before publishing to
+	// collect any automatically added reviewers. This is necessary because of the same
+	// bug as above.
+	PublishPatchSetCreatedImmediately bool `ini:"publish-patch-set-created-immediately"`
+
 	// PublishOnWipReady and PublishOnPrivateToPublic default to the value of
 	// PublishOnPatchSetCreated but since we can't determine if they were false
 	// or not set, we use a pointer and then fill in the regular values later

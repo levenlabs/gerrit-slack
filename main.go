@@ -97,37 +97,39 @@ func main() {
 
 func listenForEvents(client *gerrit.Client, ech <-chan gerritssh.Event, sch chan webhookSubmit) {
 	for e := range ech {
-		var pcfg project.Config
-		if e.Change.Project != "" {
-			var err error
-			pcfg, err = project.LoadConfig(client, e.Change.Project)
-			if err != nil {
-				llog.Error("error loading config", llog.ErrKV(err), e.KV())
-				continue
+		go func() {
+			var pcfg project.Config
+			if e.Change.Project != "" {
+				var err error
+				pcfg, err = project.LoadConfig(client, e.Change.Project)
+				if err != nil {
+					llog.Error("error loading config", llog.ErrKV(err), e.KV())
+					return
+				}
 			}
-		}
-		h, ok := events.Handler(e, pcfg)
-		if !ok {
-			llog.Info("no handlers for event", e.KV())
-			continue
-		}
-		ignore, err := h.Ignore(e, pcfg)
-		if err != nil {
-			llog.Error("error handling event", llog.ErrKV(err), e.KV(), llog.KV{"handler": h.Type()})
-			continue
-		}
-		if ignore {
-			continue
-		}
-		msg, err := h.Message(e, pcfg, client)
-		if err != nil {
-			llog.Error("error generating message for event", llog.ErrKV(err), e.KV(), llog.KV{"handler": h.Type()})
-			continue
-		}
-		sch <- webhookSubmit{
-			Message:    msg,
-			WebhookURL: pcfg.WebhookURL,
-		}
+			h, ok := events.Handler(e, pcfg)
+			if !ok {
+				llog.Info("no handlers for event", e.KV())
+				return
+			}
+			ignore, err := h.Ignore(e, pcfg)
+			if err != nil {
+				llog.Error("error handling event", llog.ErrKV(err), e.KV(), llog.KV{"handler": h.Type()})
+				return
+			}
+			if ignore {
+				return
+			}
+			msg, err := h.Message(e, pcfg, client)
+			if err != nil {
+				llog.Error("error generating message for event", llog.ErrKV(err), e.KV(), llog.KV{"handler": h.Type()})
+				return
+			}
+			sch <- webhookSubmit{
+				Message:    msg,
+				WebhookURL: pcfg.WebhookURL,
+			}
+		}()
 	}
 }
 
