@@ -97,7 +97,7 @@ func main() {
 
 func listenForEvents(client *gerrit.Client, ech <-chan gerritssh.Event, sch chan webhookSubmit) {
 	for e := range ech {
-		go func() {
+		go func(e gerritssh.Event) {
 			var pcfg project.Config
 			if e.Change.Project != "" {
 				var err error
@@ -128,14 +128,16 @@ func listenForEvents(client *gerrit.Client, ech <-chan gerritssh.Event, sch chan
 			sch <- webhookSubmit{
 				Message:    msg,
 				WebhookURL: pcfg.WebhookURL,
+				SourceType: e.Type,
 			}
-		}()
+		}(e)
 	}
 }
 
 type webhookSubmit struct {
 	events.Message
 	WebhookURL string
+	SourceType string
 }
 
 func webhookSubmitter(sch <-chan webhookSubmit) {
@@ -160,6 +162,7 @@ func webhookSubmitter(sch <-chan webhookSubmit) {
 		kv := llog.KV{
 			"channel": s.Channel,
 			"url":     s.WebhookURL,
+			"source":  s.SourceType,
 		}
 		switch resp.StatusCode {
 		case http.StatusOK:
