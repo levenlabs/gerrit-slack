@@ -24,9 +24,7 @@ type Attachment struct {
 	TitleLink string         `json:"title_link"`
 	Text      string         `json:"text"`
 	Color     string         `json:"color"`
-	Footer    string         `json:"footer"`
 	Fields    []MessageField `json:"fields"`
-	TS        int64          `json:"ts"`
 }
 
 // Message is a single-attachment message
@@ -47,13 +45,13 @@ func (m Message) MarshalJSON() ([]byte, error) {
 	return json.Marshal(msg)
 }
 
-// DefaultPretext returns the default pretext with the given action
+// DefaultPretext returns the default title with the given action
 func DefaultPretext(action string, e gerritssh.Event) string {
-	return fmt.Sprintf("%s <%s|%s change %d>",
+	return fmt.Sprintf(`%s %s patchset: <%s|%s>`,
 		action,
-		e.Change.URL,
 		e.Change.Project,
-		e.Change.Number,
+		e.Change.URL,
+		e.Change.Subject,
 	)
 }
 

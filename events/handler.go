@@ -72,21 +72,11 @@ func (w globalWrapper) Message(e gerritssh.Event, pcfg project.Config, c *gerrit
 		if m.Channel == "" {
 			m.Channel = pcfg.Channel
 		}
-		if m.Title == "" {
-			m.Title = e.Change.Subject
-			m.TitleLink = e.Change.URL
-		}
 		if m.Color == "" {
 			m.Color = "good"
 			if e.Change.Status == gerritssh.ChangeStatusMerged || e.Change.Status == gerritssh.ChangeStatusAbandoned {
 				m.Color = "danger"
 			}
-		}
-		if m.Footer == "" {
-			m.Footer = "Gerrit"
-		}
-		if m.TS == 0 {
-			m.TS = e.TSCreated
 		}
 	}
 	return m, err

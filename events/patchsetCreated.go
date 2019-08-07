@@ -62,9 +62,9 @@ func (PatchSetCreated) Ignore(e gerritssh.Event, pcfg project.Config) (bool, err
 func (PatchSetCreated) Message(e gerritssh.Event, pcfg project.Config, c *gerrit.Client) (Message, error) {
 	// we let the owner know their change was merged
 	var m Message
-	action := "Proposed"
+	action := "proposed"
 	if e.PatchSet.Number > 1 {
-		action = "Updated"
+		action = "updated"
 	}
 	m.Fallback = fmt.Sprintf("%s %s %s: %s",
 		e.Uploader.Name,

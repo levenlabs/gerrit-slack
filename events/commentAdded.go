@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/andygrunwald/go-gerrit"
 	"github.com/levenlabs/gerrit-slack/gerritssh"
@@ -26,12 +27,43 @@ func (CommentAdded) Ignore(e gerritssh.Event, pcfg project.Config) (bool, error)
 	if !pcfg.PublishOnCommentAdded {
 		return true, nil
 	}
-	return regexMatch(pcfg.IgnoreAuthors, e.Author.Username)
+	ignore, err := regexMatch(pcfg.IgnoreAuthors, e.Author.Username)
+	if err != nil {
+		return false, err
+	}
+	if ignore {
+		return true, nil
+	}
+	// if the comment contains 2 new-lines then there was a comment WITH the votes
+	// so there's no reason to check votes
+	if len(e.Approvals) == 0 || strings.Contains(e.Comment, "\n\n") {
+		return false, nil
+	}
+	var voted bool
+	// TODO: remove this once https://bugs.chromium.org/p/gerrit/issues/detail?id=8494
+	for _, v := range e.Approvals {
+		if v.OldValue != "" {
+			voted = true
+			ignore, err = regexMatch(pcfg.IgnoreOnlyLabels, v.Type)
+			if err != nil {
+				return false, err
+			}
+			// if we shouldn't ignore this label then immediately bail
+			if !ignore {
+				return false, nil
+			}
+		}
+	}
+	// if we found at least one vote then we should ignore because that means that
+	// IgnoreOnlyLabels matched all of the voted labels
+	if voted {
+		return true, nil
+	}
+	return false, nil
 }
 
 // Message implements the EventHandler interface
 func (CommentAdded) Message(e gerritssh.Event, _ project.Config, c *gerrit.Client) (Message, error) {
-	// we let the owner know their change was merged
 	var m Message
 	var voted bool
 	if len(e.Approvals) > 0 {
