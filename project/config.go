@@ -26,6 +26,7 @@ type Config struct {
 	IgnoreUnchangedPatchSet  bool   `ini:"ignore-unchanged-patch-set"`
 	IgnoreWipPatchSet        bool   `ini:"ignore-wip-patch-set"`
 	IgnorePrivatePatchSet    bool   `ini:"ignore-private-patch-set"`
+	IgnoreOnlyLabels         string `ini:"ignore-only-labels"`
 	PublishOnChangeMerged    bool   `ini:"publish-on-change-merged"`
 	PublishOnCommentAdded    bool   `ini:"publish-on-comment-added"`
 	PublishOnPatchSetCreated bool   `ini:"publish-on-patch-set-created"`
