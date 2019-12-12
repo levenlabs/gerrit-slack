@@ -63,7 +63,7 @@ func (CommentAdded) Ignore(e gerritssh.Event, pcfg project.Config) (bool, error)
 }
 
 // Message implements the EventHandler interface
-func (CommentAdded) Message(e gerritssh.Event, _ project.Config, c *gerrit.Client) (Message, error) {
+func (CommentAdded) Message(e gerritssh.Event, _ project.Config, c *gerrit.Client, me MessageEnricher) (Message, error) {
 	var m Message
 	var voted bool
 	if len(e.Approvals) > 0 {
@@ -89,7 +89,7 @@ func (CommentAdded) Message(e gerritssh.Event, _ project.Config, c *gerrit.Clien
 	m.Pretext = DefaultPretext(action, e)
 
 	m.Fields = []MessageField{
-		OwnerField(e),
+		OwnerField(e, me),
 	}
 	// if the author is the owner, then let reviewers know
 	if e.Author.Email == e.Change.Owner.Email {
@@ -98,7 +98,7 @@ func (CommentAdded) Message(e gerritssh.Event, _ project.Config, c *gerrit.Clien
 		if err != nil {
 			return m, err
 		}
-		m.Fields = append(m.Fields, ReviewersField(e, *rs))
+		m.Fields = append(m.Fields, ReviewersField(e, *rs, me))
 	}
 	m.Text = e.Comment
 	return m, nil

@@ -37,7 +37,7 @@ func (ReviewerAdded) Ignore(e gerritssh.Event, pcfg project.Config) (bool, error
 }
 
 // Message implements the EventHandler interface
-func (ReviewerAdded) Message(e gerritssh.Event, _ project.Config, _ *gerrit.Client) (Message, error) {
+func (ReviewerAdded) Message(e gerritssh.Event, _ project.Config, _ *gerrit.Client, me MessageEnricher) (Message, error) {
 	// we let the owner know their change was merged
 	var m Message
 	m.Fallback = fmt.Sprintf("%s asked to review %s: %s",
@@ -48,10 +48,10 @@ func (ReviewerAdded) Message(e gerritssh.Event, _ project.Config, _ *gerrit.Clie
 	m.Pretext = DefaultPretext("Review requested for", e)
 
 	m.Fields = []MessageField{
-		OwnerField(e),
+		OwnerField(e, me),
 		MessageField{
 			Title: "Reviewer",
-			Value: e.Reviewer.Name,
+			Value: me.MentionUser(e.Reviewer.Email, e.Reviewer.Name),
 			Short: true,
 		},
 	}

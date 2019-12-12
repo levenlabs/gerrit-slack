@@ -27,7 +27,7 @@ func (ChangeMerged) Ignore(e gerritssh.Event, pcfg project.Config) (bool, error)
 }
 
 // Message implements the EventHandler interface
-func (ChangeMerged) Message(e gerritssh.Event, _ project.Config, _ *gerrit.Client) (Message, error) {
+func (ChangeMerged) Message(e gerritssh.Event, _ project.Config, _ *gerrit.Client, me MessageEnricher) (Message, error) {
 	// we let the owner know their change was merged
 	var m Message
 	m.Fallback = fmt.Sprintf("%s: merged %s: %s",
@@ -36,6 +36,6 @@ func (ChangeMerged) Message(e gerritssh.Event, _ project.Config, _ *gerrit.Clien
 		e.Change.Subject,
 	)
 	m.Pretext = DefaultPretext("Merged", e)
-	m.Fields = []MessageField{OwnerField(e), ProjectField(e)}
+	m.Fields = []MessageField{OwnerField(e, me), ProjectField(e)}
 	return m, nil
 }

@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 
 	"github.com/go-ini/ini"
+	"github.com/nlopes/slack"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/levenlabs/gerrit-slack/events"
@@ -34,6 +36,7 @@ type config struct {
 	PrivateKeyPath string `ini:"private-key-path"`
 	HostKey        string `ini:"host-key"`
 	DebugEvents    string `ini:"debug-events"`
+	SlackToken     string `ini:"slack-token"`
 }
 
 func main() {
@@ -84,7 +87,7 @@ func main() {
 	sch := make(chan webhookSubmit, 10)
 	go webhookSubmitter(sch)
 	ech := make(chan gerritssh.Event, 10)
-	go listenForEvents(client, ech, sch)
+	go listenForEvents(client, ech, sch, cfg.SlackToken)
 
 	llog.Info("streaming events")
 	for {
@@ -95,7 +98,63 @@ func main() {
 	}
 }
 
-func listenForEvents(client *gerrit.Client, ech <-chan gerritssh.Event, sch chan webhookSubmit) {
+// SlackState holds various slack metadata that can be used to improve messages
+type slackState struct {
+	emailToID map[string]string
+	refreshed time.Time
+	sapi      *slack.Client
+}
+
+func (s *slackState) refresh() error {
+	if s.sapi == nil {
+		return nil
+	}
+	us, err := s.sapi.GetUsers()
+	if err != nil {
+		return err
+	}
+	emailToID := map[string]string{}
+	for _, u := range us {
+		if u.Profile.Email != "" {
+			emailToID[strings.ToLower(u.Profile.Email)] = u.ID
+		}
+	}
+	llog.Debug("loaded users from slack", llog.KV{"numUsers": len(emailToID)})
+	s.emailToID = emailToID
+	s.refreshed = time.Now()
+	return nil
+}
+
+func (s *slackState) refreshIfNecessary() error {
+	if s.sapi == nil {
+		return nil
+	}
+	if time.Since(s.refreshed) > time.Hour {
+		return s.refresh()
+	}
+	return nil
+}
+
+// MentionUser either returns just their name or it @ mentions them
+// MentionUser implements the events.MessageEnricher interface
+func (s *slackState) MentionUser(email string, name string) string {
+	llog.Debug("lloking up user", llog.KV{"email": email})
+	id, ok := s.emailToID[strings.ToLower(email)]
+	if ok {
+		return fmt.Sprintf("<@%s>", id)
+	}
+	return name
+}
+
+func listenForEvents(client *gerrit.Client, ech <-chan gerritssh.Event, sch chan webhookSubmit, token string) {
+	var state slackState
+	if token != "" {
+		state.sapi = slack.New(token)
+	}
+	if err := state.refresh(); err != nil {
+		llog.Fatal("failed to load slack metadata", llog.ErrKV(err))
+	}
+
 	for e := range ech {
 		go func(e gerritssh.Event) {
 			var pcfg project.Config
@@ -120,7 +179,10 @@ func listenForEvents(client *gerrit.Client, ech <-chan gerritssh.Event, sch chan
 			if ignore {
 				return
 			}
-			msg, err := h.Message(e, pcfg, client)
+			if err := state.refreshIfNecessary(); err != nil {
+				llog.Error("error refreshing slack metadata", llog.ErrKV(err))
+			}
+			msg, err := h.Message(e, pcfg, client, &state)
 			if err != nil {
 				llog.Error("error generating message for event", llog.ErrKV(err), e.KV(), llog.KV{"handler": h.Type()})
 				return

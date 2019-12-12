@@ -59,7 +59,7 @@ func (PatchSetCreated) Ignore(e gerritssh.Event, pcfg project.Config) (bool, err
 }
 
 // Message implements the EventHandler interface
-func (PatchSetCreated) Message(e gerritssh.Event, pcfg project.Config, c *gerrit.Client) (Message, error) {
+func (PatchSetCreated) Message(e gerritssh.Event, pcfg project.Config, c *gerrit.Client, me MessageEnricher) (Message, error) {
 	// we let the owner know their change was merged
 	var m Message
 	action := "proposed"
@@ -90,7 +90,7 @@ func (PatchSetCreated) Message(e gerritssh.Event, pcfg project.Config, c *gerrit
 		dstr = "-" + dstr
 	}
 	m.Fields = []MessageField{
-		ReviewersField(e, *rs),
+		ReviewersField(e, *rs, me),
 		MessageField{
 			Title: "Size",
 			Value: fmt.Sprintf("+%d, %s",
