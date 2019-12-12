@@ -18,7 +18,14 @@ type EventHandler interface {
 	Ignore(gerritssh.Event, project.Config) (bool, error)
 
 	// Message should return a Message for the event
-	Message(gerritssh.Event, project.Config, *gerrit.Client) (Message, error)
+	Message(gerritssh.Event, project.Config, *gerrit.Client, MessageEnricher) (Message, error)
+}
+
+// MessageEnricher is used when building a message to mention a user
+type MessageEnricher interface {
+	// MentionUser takes an email and name and returns either a mention or their
+	// name
+	MentionUser(string, string) string
 }
 
 var handlers = map[string]EventHandler{}
@@ -66,8 +73,8 @@ func (w globalWrapper) Ignore(e gerritssh.Event, pcfg project.Config) (bool, err
 }
 
 // Message implements the EventHandler interface
-func (w globalWrapper) Message(e gerritssh.Event, pcfg project.Config, c *gerrit.Client) (Message, error) {
-	m, err := w.EventHandler.Message(e, pcfg, c)
+func (w globalWrapper) Message(e gerritssh.Event, pcfg project.Config, c *gerrit.Client, me MessageEnricher) (Message, error) {
+	m, err := w.EventHandler.Message(e, pcfg, c, me)
 	if err == nil {
 		if m.Channel == "" {
 			m.Channel = pcfg.Channel

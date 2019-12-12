@@ -55,16 +55,16 @@ func DefaultPretext(action string, e gerritssh.Event) string {
 	)
 }
 
-// OwnerField retuns a Owner field with their name
-func OwnerField(e gerritssh.Event) MessageField {
+// OwnerField returns a Owner field with their name
+func OwnerField(e gerritssh.Event, me MessageEnricher) MessageField {
 	return MessageField{
 		Title: "Owner",
-		Value: e.Change.Owner.Name,
+		Value: me.MentionUser(e.Change.Owner.Email, e.Change.Owner.Name),
 		Short: true,
 	}
 }
 
-// ProjectField retuns a Project field with the name
+// ProjectField returns a Project field with the name
 func ProjectField(e gerritssh.Event) MessageField {
 	return MessageField{
 		Title: "Project",
@@ -73,8 +73,8 @@ func ProjectField(e gerritssh.Event) MessageField {
 	}
 }
 
-// ReviewersField retuns a Reviewers field with reviewers
-func ReviewersField(e gerritssh.Event, rs []gerrit.ReviewerInfo) MessageField {
+// ReviewersField returns a Reviewers field with reviewers
+func ReviewersField(e gerritssh.Event, rs []gerrit.ReviewerInfo, me MessageEnricher) MessageField {
 	reviewers := []string{}
 	for _, r := range rs {
 		// ignore bots
@@ -85,7 +85,7 @@ func ReviewersField(e gerritssh.Event, rs []gerrit.ReviewerInfo) MessageField {
 		if r.Email == e.Change.Owner.Email {
 			continue
 		}
-		reviewers = append(reviewers, r.Name)
+		reviewers = append(reviewers, me.MentionUser(r.Email, r.Name))
 	}
 	return MessageField{
 		Title: "Reviewers",
